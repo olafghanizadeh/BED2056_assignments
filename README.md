@@ -1,1 +1,3 @@
-# BED2056_assignments
+# BED2056 Assignments
+
+## Assignment 2
