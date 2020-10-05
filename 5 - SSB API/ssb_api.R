@@ -62,25 +62,9 @@ str(dframe)
 # And how many levels has the variable?
 dframe %>% select(variable) %>% unique()
 
-# car::recode()
-dframe <- dframe %>%  mutate(variable1 = car::recode(dframe$variable,
-                                                     ' "Utleigde rom"="rentedrooms";
-"Pris per rom (kr)"="roomprice";
-"Kapasitetsutnytting av rom (prosent)"="roomcap";
-"Kapasitetsutnytting av senger (prosent)"="bedcap";
-"Losjiomsetning (1 000 kr)"="revenue";
-"Losjiomsetning per tilgjengeleg rom (kr)"="revperroom";
-"Losjiomsetning, hittil i Ã¥r (1 000 kr)"="revsofar";
-"Losjiomsetning per tilgjengeleg rom, hittil i Ã¥r (kr)"="revroomsofar";
-"Pris per rom hittil i Ã¥r (kr)"="roompricesofar";
-"Kapasitetsutnytting av rom hittil i Ã¥r (prosent)"="roomcapsofar";
-"Kapasitetsutnytting av senger, hittil i Ã¥r (prosent)"="bedcapsofar" '))
-
-dframe %>% select(variable1) %>% unique()
-with(dframe, table(variable, variable1))
 
 # dplyr::recode()
-dframe <- dframe %>% mutate(variable2 = dplyr::recode(variable,
+dframe <- dframe %>% mutate(variable = dplyr::recode(variable,
                                                       "Utleigde rom"="rentedrooms",
                                                       "Pris per rom (kr)"="roomprice",
                                                       "Kapasitetsutnytting av rom (prosent)"="roomcap",
@@ -94,33 +78,27 @@ dframe <- dframe %>% mutate(variable2 = dplyr::recode(variable,
                                                       "Kapasitetsutnytting av senger, hittil i Ã¥r (prosent)"="bedcapsofar"))
 
 dframe %>% select(variable2) %>% unique()
-with(dframe, table(variable, variable2))
+with(dframe, table(variable, variable))
 
-# or mutate & ifelse, a bit cumbersome, but flexible
-dframe <-
-  dframe %>%
-  mutate(variable3 =
-           ifelse(variable == "Utleigde rom", "rentedrooms",
-                  ifelse(variable == "Pris per rom (kr)", "roomprice",
-                         ifelse(variable == "Kapasitetsutnytting av rom (prosent)", "roomcap",
-                                ifelse(variable == "Kapasitetsutnytting av senger (prosent)", "bedcap",
-                                       ifelse(variable == "Losjiomsetning (1 000 kr)", "revenue",
-                                              ifelse(variable == "Losjiomsetning per tilgjengeleg rom (kr)", "revperroom",
-                                                     ifelse(variable == "Losjiomsetning, hittil i Ã¥r (1 000 kr)", "revsofar",
-                                                            ifelse(variable == "Losjiomsetning per tilgjengeleg rom, hittil i Ã¥r (kr)", "revroomsofar",
-                                                                   ifelse(variable == "Pris per rom hittil i Ã¥r (kr)", "roompricesofar",
-                                                                          ifelse(variable == "Kapasitetsutnytting av rom hittil i Ã¥r (prosent)", "roomcapsofar", "bedcapsofar")))))))))))
-
-
-dframe %>% select(variable3) %>% unique()
-with(dframe, table(variable, variable3))
 
 
 # recode region
-dframe <- dframe %>% mutate(region =
-                              ifelse(region == "Hele landet",
-                                     "Whole country", region))
+dframe <- dframe %>% mutate(region = dplyr::recode(region,
+                                                   "Heile landet" = "Whole country",
+                                                   "Trøndelag - Trööndelage" = "Trøndelag",
+                                                   "Vestfold og Telemark" = "Vestfold and Telemark",
+                                                   "Troms og Finnmark - Romsa ja Finnmárku" = "Svalbard, Troms and Finnmark",
+                                                   "Møre og Romsdal" = "Møre and Romsdal"
+                                                   ))
 
 mosaic::tally(~region, data = dframe)
 
 # we now have the data in long format ready for data wrangling
+library(ggplot2)
+roomcap <- filter(dframe, variable == "roomcap")
+
+ggplot(roomcap, aes(month,value, group = region, colour = region)) +
+  geom_line() +
+  geom_point() +
+  ylab("Room capacity") +
+  xlab("Month")
