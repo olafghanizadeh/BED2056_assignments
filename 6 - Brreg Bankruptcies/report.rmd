@@ -1,0 +1,76 @@
+---
+title: "Did the COVID-19 pandemic increase Norwegian bankruptcies?"
+author: "Olaf Ghanizadeh"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(rvest)
+#use httr so we can contruct URLs to query programatically
+library(httr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(zoo)
+```
+
+```{r}
+#A function to scrape brreg
+
+#get the current date to fetch the lastest data for 2020
+current_date <- format(Sys.Date(), "%d.%m.%Y")
+
+brreg_scraper <- function(fromDate, toDate) {
+  #brreg base URL
+  url <- "https://w2.brreg.no/kunngjoring/kombisok.jsp?"
+  #We can use the query argument from httr to create the URL to scrape, we do not add any further arguments than fromDate and toDate in this function, and the id_niva1 and id_niva2 is kept static to skip the need to filter for type of announcement
+  query <- list(datoFra = fromDate, datoTil = toDate, id_niva1 = "51", id_niva2 = "56")
+  #create the GET request that is later given to rvest
+  resp <- GET(url, query=query) %>%
+    read_html(.) %>%
+    #get the first table
+    html_nodes(xpath = "//table") %>%
+    #but only the nested table
+    html_nodes("table") %>%
+    #let rvest create an R table from the data
+    html_table() %>%
+    #Store the table as a dataframe
+    .[[1]] %>%
+    #We only want companies, lets remove persons by filtering based on the org. nr. as the persons are listed with their Date of Birth and not org. nr. 
+    #Let's select only the column with region name and date of announcement
+    select(., X2, X4, X6) %>%
+    rename(., "company"="X2", "orgnr" = "X4", "date" = "X6") %>%
+    mutate(region=ifelse(grepl("[^Dato][A-Za-z]", date), date, NA)) %>% 
+    fill(region) %>% 
+    filter(orgnr != region, date != "") %>%
+    filter(nchar(orgnr) > 6) %>%
+    mutate(date = dmy(date)) %>%
+    group_by(region, month=floor_date(date, "month")) %>%
+    summarise(count=cumsum(n())) %>%
+    mutate("cm_region" = cumsum(count))
+  }
+
+
+#Call functions for the two respective years. We the system returns only up until current date even if we set the toDate to a future date.
+nineteen <- brreg_scraper("01.01.2019", "31.12.2019")
+twenty <- brreg_scraper("01.01.2020", current_date)
+
+
+```
+
+
+```{r}
+ggplot() +
+  geom_line(data = nineteen, aes(x=month, y=cm_region)) + 
+  geom_line(data = twenty, aes(x=month, y=cm_region)) +
+  facet_wrap(region ~ ., ncol = 3) +
+  geom_point() +
+  theme_minimal() 
+  
+```
+
