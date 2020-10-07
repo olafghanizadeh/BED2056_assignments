@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
 
 library(rvest)
 #use httr so we can contruct URLs to query programatically
@@ -19,7 +19,7 @@ library(ggplot2)
 library(zoo)
 ```
 
-```{r}
+```{r scrape}
 #A function to scrape brreg
 
 #get the current date to fetch the lastest data for 2020
@@ -56,21 +56,30 @@ brreg_scraper <- function(fromDate, toDate) {
   }
 
 
-#Call functions for the two respective years. We the system returns only up until current date even if we set the toDate to a future date.
-nineteen <- brreg_scraper("01.01.2019", "31.12.2019")
-twenty <- brreg_scraper("01.01.2020", current_date)
+
 
 
 ```
 
 
 ```{r}
-ggplot() +
-  geom_line(data = nineteen, aes(x=month, y=cm_region)) + 
-  geom_line(data = twenty, aes(x=month, y=cm_region)) +
-  facet_wrap(region ~ ., ncol = 3) +
-  geom_point() +
+#Call functions for the two respective years. We the system returns only up until current date even if we set the toDate to a future date.
+nineteen <- brreg_scraper("01.01.2019", "31.12.2019")
+twenty <- brreg_scraper("01.01.2020", current_date)
+```
+
+
+## Bankruptcies in 2019
+In 2019 there were `r cumsum(nineteen$count)` reported bankruptcies in Norway, excluding private persons. 
+
+
+
+```{r plot, results='hide'}
+ggplot(nineteen, aes(x=month, y=cm_region, color = year(month))) +
+  geom_line() + 
+  geom_line(data = twenty, colour='red', aes(x=month, y=cm_region)) +
+  facet_wrap(~ region) +
+  scale_x_date(date_labels = "%b")
   theme_minimal() 
-  
 ```
 
