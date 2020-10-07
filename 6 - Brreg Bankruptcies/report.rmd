@@ -16,7 +16,6 @@ library(httr)
 library(tidyverse)
 library(lubridate)
 library(ggplot2)
-library(zoo)
 ```
 
 ```{r scrape}
@@ -50,9 +49,10 @@ brreg_scraper <- function(fromDate, toDate) {
     filter(orgnr != region, date != "") %>%
     filter(nchar(orgnr) > 6) %>%
     mutate(date = dmy(date)) %>%
-    group_by(region, month=floor_date(date, "month")) %>%
+    group_by(region, date=floor_date(date, "month")) %>%
+    filter(region != "Utenlands") %>%
     summarise(count=cumsum(n())) %>%
-    mutate("cm_region" = cumsum(count))
+    mutate("cumsum_region" = cumsum(count))
   }
 
 
@@ -75,10 +75,10 @@ In 2019 there were `r cumsum(nineteen$count)` reported bankruptcies in Norway, e
 
 
 ```{r plot, results='hide'}
-ggplot(nineteen, aes(x=month, y=cm_region, color = year(month))) +
+
+
+ggplot(rbind(nineteen,twenty), aes(x = factor(month(date)), y = cumsum_region, group=factor(year(date)), color = factor(year(date)))) +
   geom_line() + 
-  geom_line(data = twenty, colour='red', aes(x=month, y=cm_region)) +
-  facet_wrap(~ region) +
   scale_x_date(date_labels = "%b")
   theme_minimal() 
 ```
