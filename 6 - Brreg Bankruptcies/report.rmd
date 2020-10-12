@@ -57,8 +57,6 @@ brreg_scraper <- function(fromDate, toDate) {
 
 
 
-
-
 ```
 
 
@@ -66,20 +64,30 @@ brreg_scraper <- function(fromDate, toDate) {
 #Call functions for the two respective years. We the system returns only up until current date even if we set the toDate to a future date.
 nineteen <- brreg_scraper("01.01.2019", "31.12.2019")
 twenty <- brreg_scraper("01.01.2020", current_date)
+
+```
+```{r}
+#Compiling the two dataframes into one for easier plotting
+compiled <- rbind(nineteen,twenty) %>%
+  group_by(year = factor(year(date))) %>%
+  mutate(month = month(date, label = TRUE))
+
 ```
 
 
-## Bankruptcies in 2019
-In 2019 there were `r cumsum(nineteen$count)` reported bankruptcies in Norway, excluding private persons. 
+## Bankruptcies in 2019 versus 2020
+In 2019 there were `r sum(nineteen$count)` reported bankruptcies in Norway, excluding private persons and foreign entities. For 2020 the number is `r sum(twenty$count)` YTD. The graph below gives a better picture of the situation:
 
 
 
-```{r plot, results='hide'}
+```{r plot, results='hide', fig.width=12, fig.height=6, dev='svg'}
 
-
-ggplot(rbind(nineteen,twenty), aes(x = factor(month(date)), y = cumsum_region, group=factor(year(date)), color = factor(year(date)))) +
+ggplot(compiled, aes(x = month, y = cumsum_region, group=year, color = year)) +
   geom_line() + 
-  scale_x_date(date_labels = "%b")
-  theme_minimal() 
+  xlab("Month") + 
+  ylab("Cumulative bankruptices per region") +
+  facet_wrap(~ region, ncol = 3) +
+  theme_minimal()
 ```
 
+As of today, we cannot conclude that the ongoing pandemic has caused an increase in bankruptcies.
