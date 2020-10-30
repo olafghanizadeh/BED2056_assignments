@@ -1,0 +1,164 @@
+---
+title: "US Birth Data"
+author: "Olaf Ghanizadeh"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
+library(tidyverse)
+library(lubridate)
+library(ggthemes)
+library(ggplot2)
+library(formattable)
+
+options(scipen=999)
+```
+
+
+```{r}
+read_birth <- function(path) {
+  read_fwf(path,
+           fwf_positions(
+             start = c(13,475,504,23,9),
+             end = c(14,475,507,23,12),
+             col_names = c("birth_month", "sex", "birth_weight", "birth_weekday", "birth_year")
+           )
+           )
+}
+```
+
+
+```{r}
+births2017 <- read_birth("data/Nat2017PublicUS.c20180516.r20180808.txt")
+births2018 <- read_birth("data/Nat2018PublicUS.c20190509.r20190717.txt")
+births2019 <- read_birth("data/Nat2019PublicUS.c20200506.r20200915.txt")
+```
+
+
+
+
+```{r}
+births_all <- rbind(births2017, births2018, births2019) %>%
+  mutate(sex=factor(sex), birth_year=factor(birth_year), birth_month=birth_month, birth_weekday=birth_weekday, birth_weight=as.numeric(birth_weight))
+```
+
+
+
+## The average birth weight in grams by gender
+```{r}
+avg_weight <- births_all %>%
+  group_by(sex, birth_month, birth_year) %>%
+  summarise(weight=mean(birth_weight))
+```
+
+```{r, results='hide', dev='svg'}
+ggplot(avg_weight, aes(x=sex, y=weight, group=sex, fill=sex)) +
+  geom_col() +
+  #geom_text(aes(x = sex, y = weight, label = round(weight)), size=10, color="white", position=position_stack(vjust=0.5))  +
+  theme_economist() +
+  xlab("Sex") +
+  ylab("Weight at birth in grams")  + 
+  ggtitle("The average birth weight in grams by sex") +
+  facet_wrap(~ birth_year, ncol=3)
+
+```
+
+
+```{r}
+ggplot(data=births_all, aes(x=birth_weight, fill=sex, color=sex)) +
+  geom_histogram() + 
+  geom_vline(aes(xintercept=mean(birth_weight)),
+            color="blue", linetype="dashed", size=1) +
+  theme_economist()
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+proptable <- 
+  births_all %>%
+  group_by(birth_month, birth_year) %>%
+  mutate(nTot = n()) %>%
+  group_by(sex, birth_month, birth_year) %>%
+  mutate(nGroup = n()) %>%
+  mutate(prop = nGroup/nTot) %>%
+  mutate(prop = if_else(sex == "M", -prop, prop)) %>%
+  mutate(prop = percent(prop)) %>%
+  select(birth_month, birth_year, sex, prop)
+```
+
+
+
+## The proportion of boys to girls per month, grouped by year
+I wanted to create a chart similar to this:
+![Example plot](https://help.macrobond.com/wp-content/uploads/2018/05/BR1.svg)
+I was not able to make it look right, and the compiled data set for the plot below made it really slow.
+```{r, results='hide', dev='svg'}
+sex_plot <- 
+  proptable %>%
+  ggplot(aes(x=birth_month, y=prop, group=sex, fill=sex)) +
+  geom_bar(stat = "identity", width = 0.5) + 
+  coord_flip() +
+  scale_y_continuous(labels = scales::percent) +
+  theme_economist() +
+  facet_wrap(~ birth_year, ncol=1) + 
+  xlab("Month") +
+  ylab("Share of total")  + 
+  ggtitle("The proportion of sexes in newborn babies")
+
+print(sex_plot)
+```
+
+
+
+```{r}
+ggplot(data=births_all, aes(x=sex))+
+  geom_bar(aes(y=..prop.., group=1)) +
+  facet_grid(birth_year ~ birth_month) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+
+```
+
+
+```{r}
+weekday_prop <- 
+  births_all %>%
+  mutate(birth_weekday = wday(birth_weekday, label=TRUE, abbr = FALSE))
+```
+
+
+```{r plot, dev='svg'}
+ggplot(weekday_prop, aes(x = sex, fill=factor(..x..))) +
+  geom_bar(aes(y = ..prop.., group = 1)) + 
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) + 
+  xlab("Sex") + 
+  ylab("Number of births") +
+  facet_wrap(~ birth_weekday) + 
+  theme_economist() + 
+    ggtitle("All years")
+
+```
+
+
+```{r}
+ggplot(data = births_all, aes(x = sex, fill = factor(..x..))) +
+geom_bar(aes(y = ..prop.., group = 1)) + 
+facet_grid(birth_year ~ wday(birth_weekday, label=TRUE, abbr=FALSE)) +
+scale_y_continuous(labels = scales::percent_format(accuracy = 1)) + 
+  theme_economist() +
+  ylab("Proportion") +
+  xlab("Sex") +
+  ggtitle("By year")
+```
